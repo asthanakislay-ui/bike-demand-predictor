@@ -1,29 +1,35 @@
-from pathlib import Path
+import pandas as pd
+from bike_demand_predictor.config import RAW_DATA_DIR, TARGET_COLUMN
 
-from loguru import logger
-from tqdm import tqdm
-import typer
+def load_raw_data(filename="hour.csv"):
+    """Loads the raw bike demand dataset from the raw data directory."""
+    path = RAW_DATA_DIR / filename
+    if not path.exists():
+        raise FileNotFoundError(f"Data file not found at {path}")
 
-from bike_demand_predictor.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
+    df = pd.read_csv(path)
+    return df
 
-app = typer.Typer()
+def split_time_series_data(df, target_col, train_ratio=0.7, val_ratio=0.15):
+    """
+    Splits data chronologically for time-series forecasting.
+    Returns X_train, X_val, X_test, y_train, y_val, y_test
+    """
+    # Ensure data is sorted by date if it's not already
+    # (Assuming 'dteday' exists)
+    if 'dteday' in df.columns:
+        df = df.sort_values('dteday')
 
+    n = len(df)
+    train_end = int(n * train_ratio)
+    val_end = int(n * (train_ratio + val_ratio))
 
-@app.command()
-def main(
-    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    input_path: Path = RAW_DATA_DIR / "dataset.csv",
-    output_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
-    # ----------------------------------------------
-):
-    # ---- REPLACE THIS WITH YOUR OWN CODE ----
-    logger.info("Processing dataset...")
-    for i in tqdm(range(10), total=10):
-        if i == 5:
-            logger.info("Something happened for iteration 5.")
-    logger.success("Processing dataset complete.")
-    # -----------------------------------------
+    # Separate target
+    X = df.drop(columns=[target_col, 'dteday', 'instant'], errors='ignore')
+    y = df[target_col]
 
+    X_train, y_train = X.iloc[:train_end], y.iloc[:train_end]
+    X_val, y_val = X.iloc[train_end:val_end], y.iloc[train_end:val_end]
+    X_test, y_test = X.iloc[val_end:], y.iloc[val_end:]
 
-if __name__ == "__main__":
-    app()
+    return X_train, X_val, X_test, y_train, y_val, y_test

@@ -1,5 +1,6 @@
 # Data
-/data/
+# /data/  we are removing it from git tracking just so that we can use dvc to track the data
+
 
 # Mac OS-specific storage files
 .DS_Store
